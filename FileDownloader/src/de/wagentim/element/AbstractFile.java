@@ -1,5 +1,11 @@
 package de.wagentim.element;
 
-public class AbstractFile implements IFile {
+import org.apache.http.Header;
 
+public abstract class AbstractFile implements IFile {
+	
+	public Header[] getHeaders()
+	{
+		return new Header[]{};
+	}
 }
