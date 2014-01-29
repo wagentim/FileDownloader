@@ -1,6 +1,6 @@
 package de.wagentim.test;
 
-import de.wagentim.core.DownloadService;
+import de.wagentim.download.DownloadService;
 import de.wagentim.element.DownloadFile;
 
 public class Test {

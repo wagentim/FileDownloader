@@ -8,8 +8,8 @@ import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.impl.client.CloseableHttpClient;
 
-import de.wagentim.core.DataBlock;
-import de.wagentim.core.WriteData;
+import de.wagentim.download.DataBlock;
+import de.wagentim.download.WriteData;
 import de.wagentim.element.DownloadFile;
 import de.wagentim.element.IStatusListener;
 import de.wagentim.qlogger.channel.DefaultChannel;

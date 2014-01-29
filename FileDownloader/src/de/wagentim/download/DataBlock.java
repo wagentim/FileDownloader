@@ -1,4 +1,4 @@
-package de.wagentim.core;
+package de.wagentim.download;
 
 public class DataBlock
 	{
