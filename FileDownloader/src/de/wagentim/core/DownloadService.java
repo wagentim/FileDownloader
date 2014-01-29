@@ -2,9 +2,13 @@ package de.wagentim.core;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.RandomAccessFile;
 
 import org.apache.http.Header;
+import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.config.CookieSpecs;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
@@ -12,7 +16,6 @@ import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
-import org.apache.http.message.BasicHeader;
 
 import de.wagentim.element.DownloadFile;
 import de.wagentim.element.IStatusListener;
@@ -123,10 +126,52 @@ public class DownloadService {
 		}
 	}
 
-	private void initialRemoteFileInformation(DownloadFile file) 
+	private boolean initialRemoteFileInformation(DownloadFile file) 
 	{
+		HttpGet get = new HttpGet(file.getDonwloadURL());
 		
+		HttpResponse resp = null;
 		
+		try {
+			resp = client.execute(get);
+		} catch (ClientProtocolException e) {
+			e.printStackTrace();
+			return false;
+		} catch (IOException e) {
+			e.printStackTrace();
+			return false;
+		}
+		
+		if( null == resp )
+		{
+			log.log("Cannot get remote file Infos. Response is null", Log.LEVEL_CRITICAL_ERROR);
+			return false;
+		}
+		
+		int status = resp.getStatusLine().getStatusCode();
+		
+		if( HttpStatus.SC_OK != status )
+		{
+			log.log("Get Non Successful Code from Server: " + status, Log.LEVEL_ERROR);
+			return false;
+		}
+		
+		Header[] headers = resp.getAllHeaders();
+		
+		if( null != headers && headers.length > 0 )
+		{
+			for( Header h : headers )
+			{
+				if( h.getName().equals("Content-Length") )
+				{
+					file.setFileSize(Long.parseLong(h.getValue()));
+				}
+			}
+		}
+		
+		file.setName("temp");
+		
+		return true;
 	}
 
 	private HttpRequestBase[] constructRequest(DownloadFile file) 
@@ -144,7 +189,6 @@ public class DownloadService {
 			
 			addHeaders(get, file.getHeaders());
 			
-			get.addHeader(new BasicHeader("Content-Range", "bytes 0-" + file.getFileSize() + "/" + file.getFileSize()));
 			
 			result[i] = get;
 		}

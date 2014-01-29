@@ -7,13 +7,12 @@ public class Test {
 	
 	public static void main(String[] args)
 	{
-		String uri = "http://intra.esolutions.de/wiki/lib/exe/fetch.php?media=company:essensplan_kantine_kw05.pdf";
+		String uri = "http://download.virtualbox.org/virtualbox/4.3.6/VirtualBox-4.3.6-91406-Win.exe";
 		
 		DownloadFile file = new DownloadFile();
 		file.setDonwloadURL(uri);
 		file.setTargeFilePath("c:\\temp\\");
 		file.setThreadsNumber(1);
-		file.setName("essensplan_kantine_kw05.pdf");
 		
 		DownloadService.INSTANCE.download(file, null);
 	}
