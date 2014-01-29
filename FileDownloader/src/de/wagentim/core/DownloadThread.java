@@ -15,6 +15,12 @@ import de.wagentim.qlogger.channel.LogChannel;
 import de.wagentim.qlogger.logger.Log;
 import de.wagentim.qlogger.service.QLoggerService;
 
+/**
+ * The thread to download the file
+ * 
+ * @author wagentim
+ *
+ */
 public class DownloadThread implements Runnable 
 {
 	private HttpRequestBase request = null;
@@ -26,8 +32,6 @@ public class DownloadThread implements Runnable
 	
 	private volatile boolean cancel = false;
 	private static final int BUFFER_SIZE = 4096;
-	
-	
 	
 	private final int id;
 	
@@ -82,7 +86,7 @@ public class DownloadThread implements Runnable
 			
 			while( !cancel && ( length = ins.read(buffer) ) > 0 )
 			{
-				wd.add(new DataBlock(buffer, id, offsetPoint));
+				wd.add( new DataBlock(buffer, id, offsetPoint) );
 				
 				offsetPoint += length;
 			}
@@ -94,5 +98,8 @@ public class DownloadThread implements Runnable
 		}
 	}
 	
-	
+	public void cancelDownload(boolean value)
+	{
+		cancel = value;
+	}
 }

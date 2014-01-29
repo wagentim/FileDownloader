@@ -7,6 +7,12 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 import de.wagentim.element.DownloadFile;
 
+/**
+ * write data block into the file. It is an asynchronized process. Different threads can write data block into queue. 
+ * 
+ * @author wagentim
+ *
+ */
 public class WriteData implements Runnable {
 
 	private BlockingQueue<DataBlock> queue = null;
@@ -35,12 +41,14 @@ public class WriteData implements Runnable {
 		DataBlock b = null;
 		
 		try {
+			
 			while( (b = queue.take()) != null )
 			{
 				targetFile.seek(b.getOffsetPoint());
 				targetFile.write(b.getData());
 				dFile.setDataBlock(b);
 			}
+			
 		} catch (InterruptedException e) {
 			throw new RuntimeException(e);
 		} catch (IOException e) {
@@ -48,6 +56,9 @@ public class WriteData implements Runnable {
 		}
 	}
 	
-	
+	public void finilize()
+	{
+		queue = null;
+	}
 
 }

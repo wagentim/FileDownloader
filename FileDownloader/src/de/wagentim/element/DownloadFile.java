@@ -1,8 +1,6 @@
 package de.wagentim.element;
 
-import java.io.RandomAccessFile;
-
-import de.wagentim.core.DataBlock;
+import java.util.Vector;
 
 /**
  * All text content in this class is URLEncoded.
@@ -12,55 +10,81 @@ import de.wagentim.core.DataBlock;
  */
 public class DownloadFile extends AbstractFile
 {
-	private long downloadedSize = -1;
+	
+	private long id;
+	private long fileSize = -1;
 	private String donwloadURL = null;
-	private String name = null;
-	private int threadsNumber = 1;
-	private RandomAccessFile targetFile = null;
+	private String oriFileName = null;
+	private volatile int threadsNumber = 1;
+	private String targeFilePath = null;
+	private Vector<Chunk> downloadedBlock = null;
 	
+	public DownloadFile()
+	{
+		setDownloadedBlock(new Vector<Chunk>());
+	}
 	
-	public RandomAccessFile getTargetFile() {
-		return targetFile;
-	}
-	public void setTargetFile(RandomAccessFile targetFile) {
-		this.targetFile = targetFile;
-	}
 	public String getName() {
-		return name;
+		return oriFileName;
 	}
 	public void setName(String name) {
-		this.name = name;
+		this.oriFileName = name;
 	}
-	public long getDownloadedSize() {
-		return downloadedSize;
-	}
-	public void setDownloadedSize(long downloadedSize) {
-		this.downloadedSize = downloadedSize;
-	}
+	
 	public String getDonwloadURL() {
 		return donwloadURL;
 	}
 	public void setDonwloadURL(String donwloadURL) {
 		this.donwloadURL = donwloadURL;
 	}
+	
+	public String getTargetFilePath() {
+		return null;
+	}
+	public String getTargeFilePath() {
+		return targeFilePath;
+	}
+	public void setTargeFilePath(String targeFilePath) {
+		this.targeFilePath = targeFilePath;
+	}
+
+	public Vector<Chunk> getDownloadedBlock() {
+		return downloadedBlock;
+	}
+
+	public void setDownloadedBlock(Vector<Chunk> downloadedBlock) {
+		this.downloadedBlock = downloadedBlock;
+	}
+	
+	public synchronized Chunk requireChunk()
+	{
+		int start = 0;
+		int end = 0;
+		boolean findFreeBlock = false;
+		
+		for( Chunk c : downloadedBlock )
+		{
+			
+		}
+		
+		return null;
+	}
+
 	public int getThreadsNumber() {
+		
 		return threadsNumber;
 	}
+
 	public void setThreadsNumber(int threadsNumber) {
 		this.threadsNumber = threadsNumber;
 	}
-	
-	@Override
-	public void setDataBlock(DataBlock block) {
-		
-		
-		
+
+	public long getFileSize() {
+		return fileSize;
 	}
-	@Override
-	public long getOffset(int threadID) {
-		// TODO Auto-generated method stub
-		return 0;
+
+	public void setFileSize(long fileSize) {
+		this.fileSize = fileSize;
 	}
-	
 	
 }

@@ -8,12 +8,12 @@ import org.apache.http.client.config.CookieSpecs;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpRequestBase;
-import org.apache.http.concurrent.Cancellable;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicHeader;
 
+import de.wagentim.element.DownloadFile;
 import de.wagentim.element.IFile;
 import de.wagentim.element.IStatusListener;
 import de.wagentim.qlogger.channel.DefaultChannel;
@@ -46,7 +46,7 @@ public class DownloadService {
 					.build();
 	}
 	
-	public void download(IFile file, IStatusListener listener)
+	public void download(DownloadFile file, IStatusListener listener)
 	{
 		if( null == file )
 		{
@@ -73,7 +73,7 @@ public class DownloadService {
 		}
 	}
 
-	private HttpRequestBase[] constructRequest(IFile file) 
+	private HttpRequestBase[] constructRequest(DownloadFile file) 
 	{
 
 		int threads = checkThreadNumber(file.getThreadsNumber());
