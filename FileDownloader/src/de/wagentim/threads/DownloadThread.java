@@ -1,4 +1,4 @@
-package de.wagentim.core;
+package de.wagentim.threads;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -8,7 +8,9 @@ import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.impl.client.CloseableHttpClient;
 
-import de.wagentim.element.IFile;
+import de.wagentim.core.DataBlock;
+import de.wagentim.core.WriteData;
+import de.wagentim.element.DownloadFile;
 import de.wagentim.element.IStatusListener;
 import de.wagentim.qlogger.channel.DefaultChannel;
 import de.wagentim.qlogger.channel.LogChannel;
@@ -21,10 +23,10 @@ import de.wagentim.qlogger.service.QLoggerService;
  * @author wagentim
  *
  */
-public class DownloadThread implements Runnable 
+public class DownloadThread extends Thread 
 {
 	private HttpRequestBase request = null;
-	private IFile downloadFile = null;
+	private DownloadFile downloadFile = null;
 	private IStatusListener listener = null;
 	private CloseableHttpClient client = null;
 	
@@ -37,7 +39,7 @@ public class DownloadThread implements Runnable
 	
 	private LogChannel log = null;
 	
-	public DownloadThread(final HttpRequestBase request, final IFile downloadFile, final IStatusListener listener, final CloseableHttpClient client, final int id, final WriteData wd)
+	public DownloadThread(final HttpRequestBase request, final DownloadFile downloadFile, final IStatusListener listener, final CloseableHttpClient client, final int id, final WriteData wd)
 	{
 		this.request = request;
 		this.downloadFile = downloadFile;
@@ -52,6 +54,9 @@ public class DownloadThread implements Runnable
 	@Override
 	public void run() 
 	{
+		
+		log.log("Thread: " + id + " Started!!", Log.LEVEL_INFO);
+		
 		if( null == request || null == client )
 		{
 			log.log("Request is null or Client is null", Log.LEVEL_CRITICAL_ERROR);
@@ -80,15 +85,17 @@ public class DownloadThread implements Runnable
 
 			InputStream ins = resp.getEntity().getContent();
 			
-			long offsetPoint = downloadFile.getOffset(id);
-			
 			int length = 0;
+			
+			int offsetPoint = 0;
 			
 			while( !cancel && ( length = ins.read(buffer) ) > 0 )
 			{
 				wd.add( new DataBlock(buffer, id, offsetPoint) );
 				
 				offsetPoint += length;
+				
+				log.log("Write: " + offsetPoint, Log.LEVEL_INFO);
 			}
 			
 		} catch (IllegalStateException e) {

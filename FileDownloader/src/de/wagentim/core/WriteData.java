@@ -46,7 +46,6 @@ public class WriteData implements Runnable {
 			{
 				targetFile.seek(b.getOffsetPoint());
 				targetFile.write(b.getData());
-				dFile.setDataBlock(b);
 			}
 			
 		} catch (InterruptedException e) {

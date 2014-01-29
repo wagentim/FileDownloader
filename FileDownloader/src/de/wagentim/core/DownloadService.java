@@ -1,7 +1,8 @@
 package de.wagentim.core;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.RandomAccessFile;
 
 import org.apache.http.Header;
 import org.apache.http.client.config.CookieSpecs;
@@ -14,12 +15,13 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicHeader;
 
 import de.wagentim.element.DownloadFile;
-import de.wagentim.element.IFile;
 import de.wagentim.element.IStatusListener;
+import de.wagentim.file.FileManager;
 import de.wagentim.qlogger.channel.DefaultChannel;
 import de.wagentim.qlogger.channel.LogChannel;
 import de.wagentim.qlogger.logger.Log;
 import de.wagentim.qlogger.service.QLoggerService;
+import de.wagentim.threads.DownloadThread;
 
 public class DownloadService {
 	
@@ -34,8 +36,6 @@ public class DownloadService {
 	
 	private static final int DEFAULT_THREADS = 3;
 	
-	private List<Header> basicHeaders = null;
-	
 	static
 	{
 		manager = new PoolingHttpClientConnectionManager();
@@ -46,13 +46,17 @@ public class DownloadService {
 					.build();
 	}
 	
-	public void download(DownloadFile file, IStatusListener listener)
+	public synchronized void download(DownloadFile file, IStatusListener listener)
 	{
 		if( null == file )
 		{
 			log.log("The give download file in null", Log.LEVEL_CRITICAL_ERROR);
 			return;
 		}
+		
+		// ########################################################
+		// check if download URL is available
+		// ########################################################
 		
 		String dlURL = file.getDonwloadURL();
 		
@@ -62,15 +66,67 @@ public class DownloadService {
 			return;
 		}
 		
+		// ########################################################
+		// fetch informations from the server
+		// ########################################################
+		
+		initialRemoteFileInformation(file);
+		
+		// ########################################################
+		// check if target file is available
+		// ########################################################
+		
+		String tFilePath = file.getTargeFilePath();
+		String tFileName = file.getName();
+		
+		if( null == tFilePath || tFilePath.isEmpty() || null == tFileName || tFileName.isEmpty() )
+		{
+			log.log("Cannot get target file information", Log.LEVEL_CRITICAL_ERROR);
+			return;
+		}
+		
+		File targetFile = null;
+		
+		if( !FileManager.checkFileExistance( ( targetFile = new File(tFilePath, tFileName) ) ) )
+		{
+			log.log("Cannot find or create target file!", Log.LEVEL_CRITICAL_ERROR);
+			return;
+		}
+		
+		// ########################################################
+		// create download threads
+		// ########################################################
+		
+		WriteData wd = null;
+	
+		try {
+			
+			wd = new WriteData(new RandomAccessFile(targetFile, "rwd"), file);
+			
+		} catch (FileNotFoundException e) {
+
+			e.printStackTrace();
+		}
+		
 		HttpRequestBase[] requests = constructRequest(file);
 		
 		if( null != requests && requests.length > 0 )
 		{
+			int index = 1;
+			
+			new Thread(wd).start();
+			
 			for( HttpRequestBase r : requests )
 			{
-				
+				new DownloadThread(r, file, null, client, index, wd).start();
 			}
 		}
+	}
+
+	private void initialRemoteFileInformation(DownloadFile file) 
+	{
+		
+		
 	}
 
 	private HttpRequestBase[] constructRequest(DownloadFile file) 
@@ -80,27 +136,20 @@ public class DownloadService {
 		
 		HttpRequestBase[] result = new HttpRequestBase[threads];
 		
-		HttpGet get = new HttpGet(file.getDonwloadURL());
+		HttpGet get = null;
 		
-		addHeaders(get, getDefaultHeader());
-		addHeaders(get, file.getHeaders());
-		
-		return result;
-	}
-
-	private Header[] getDefaultHeader() 
-	{
-		if( null == basicHeaders )
+		for( int i = 0; i < threads; i++ )
 		{
-			basicHeaders = new ArrayList<Header>();
-
-			basicHeaders.add(new BasicHeader("", ""));
-			basicHeaders.add(new BasicHeader("", ""));
-			basicHeaders.add(new BasicHeader("", ""));
-			basicHeaders.add(new BasicHeader("", ""));
+			get = new HttpGet(file.getDonwloadURL());
+			
+			addHeaders(get, file.getHeaders());
+			
+			get.addHeader(new BasicHeader("Content-Range", "bytes 0-" + file.getFileSize() + "/" + file.getFileSize()));
+			
+			result[i] = get;
 		}
 		
-		return basicHeaders.toArray(new BasicHeader[basicHeaders.size()]);
+		return result;
 	}
 
 	private int checkThreadNumber(int threads) 

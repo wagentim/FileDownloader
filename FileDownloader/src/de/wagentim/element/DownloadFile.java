@@ -17,11 +17,11 @@ public class DownloadFile extends AbstractFile
 	private String oriFileName = null;
 	private volatile int threadsNumber = 1;
 	private String targeFilePath = null;
-	private Vector<Chunk> downloadedBlock = null;
+	private Vector<Range> downloadedBlock = null;
 	
 	public DownloadFile()
 	{
-		setDownloadedBlock(new Vector<Chunk>());
+		setDownloadedBlock(new Vector<Range>());
 	}
 	
 	public String getName() {
@@ -48,24 +48,16 @@ public class DownloadFile extends AbstractFile
 		this.targeFilePath = targeFilePath;
 	}
 
-	public Vector<Chunk> getDownloadedBlock() {
+	public Vector<Range> getDownloadedBlock() {
 		return downloadedBlock;
 	}
 
-	public void setDownloadedBlock(Vector<Chunk> downloadedBlock) {
+	public void setDownloadedBlock(Vector<Range> downloadedBlock) {
 		this.downloadedBlock = downloadedBlock;
 	}
 	
-	public synchronized Chunk requireChunk()
+	public synchronized Range requireChunk()
 	{
-		int start = 0;
-		int end = 0;
-		boolean findFreeBlock = false;
-		
-		for( Chunk c : downloadedBlock )
-		{
-			
-		}
 		
 		return null;
 	}
