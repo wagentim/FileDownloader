@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
@@ -25,11 +27,13 @@ import de.wagentim.qlogger.channel.LogChannel;
 import de.wagentim.qlogger.logger.Log;
 import de.wagentim.qlogger.service.QLoggerService;
 import de.wagentim.threads.DownloadThread;
+import de.wagentim.utils.connect.ConnectConstants;
+import de.wagentim.utils.connect.RequestBuilder;
+import de.wagentim.utils.connect.ResponseExtractor;
 
 public class DownloadService {
 	
-	public static final DownloadService INSTANCE = new DownloadService();
-	
+	public static final DownloadService INSTANCE = new DownloadService();	
 	public static final int logID = QLoggerService.addChannel(new DefaultChannel("Download Service"));
 	private static final LogChannel log = QLoggerService.getChannel(logID);
 	
@@ -45,7 +49,7 @@ public class DownloadService {
 		globalConfig = RequestConfig.custom().setCookieSpec(CookieSpecs.BEST_MATCH).build();
 		client = HttpClients.custom()
 					.setConnectionManager(manager)
-					.setDefaultRequestConfig(globalConfig)
+					.setDefaultRequestConfig(globalConfig)	// as default setting automatically redirection will be disabled. All redirection should be handled manually.
 					.build();
 	}
 	
@@ -70,10 +74,12 @@ public class DownloadService {
 		}
 		
 		// ########################################################
-		// fetch informations from the server
+		// fetch informations from the server and saving them into DownladFile
 		// ########################################################
 		
 		initialRemoteFileInformation(file);
+		
+		file.init();
 		
 		// ########################################################
 		// check if target file is available
@@ -82,19 +88,25 @@ public class DownloadService {
 		String tFilePath = file.getTargeFilePath();
 		String tFileName = file.getName();
 		
-		if( null == tFilePath || tFilePath.isEmpty() || null == tFileName || tFileName.isEmpty() )
+		if( null == tFilePath || tFilePath.isEmpty() )
 		{
-			log.log("Cannot get target file information", Log.LEVEL_CRITICAL_ERROR);
-			return;
+			tFilePath = System.getProperty("user.home") + "\\Download\\";
+		}
+		
+		if( null == tFileName || tFileName.isEmpty() )
+		{
+			tFileName = "temp";
 		}
 		
 		File targetFile = null;
 		
-		if( !FileManager.checkFileExistance( ( targetFile = new File(tFilePath, tFileName) ) ) )
+		if( !FileManager.checkFileExistance( ( targetFile = new File(tFilePath, tFileName) ) ) )	// in case the file is not existed, then the file will be automatically created
 		{
 			log.log("Cannot find or create target file!", Log.LEVEL_CRITICAL_ERROR);
 			return;
 		}
+		
+		log.log("the target file is: " + targetFile.getAbsolutePath(), Log.LEVEL_INFO);
 		
 		// ########################################################
 		// create download threads
@@ -104,7 +116,7 @@ public class DownloadService {
 	
 		try {
 			
-			wd = new WriteData(new RandomAccessFile(targetFile, "rwd"), file);
+			wd = new WriteData(new RandomAccessFile(targetFile, "rw"), file);
 			
 		} catch (FileNotFoundException e) {
 
@@ -126,14 +138,40 @@ public class DownloadService {
 		}
 	}
 
-	private boolean initialRemoteFileInformation(DownloadFile file) 
+	/**
+	 * Try to get the remove file informations, such as file length and save them into <code>DownloadFile</code>
+	 * 
+	 * @param file
+	 * @return
+	 */
+	private boolean initialRemoteFileInformation( final DownloadFile file ) 
 	{
-		HttpGet get = new HttpGet(file.getDonwloadURL());
+		
+		URI uri = null;
+		
+		try {
+			uri = new URI(file.getDonwloadURL());
+		} catch (URISyntaxException e1) {
+			e1.printStackTrace();
+		}
+		
+		if( null == uri )
+		{
+			log.log("Cannot create URI object", Log.LEVEL_CRITICAL_ERROR);
+			
+			return false;
+		}
+		
+		HttpRequestBase request = new RequestBuilder()
+										.setHeaders(file.getHeaders())
+										.setMethodType(RequestBuilder.TYPE_GET)
+										.setURI(uri)
+										.build();
 		
 		HttpResponse resp = null;
 		
 		try {
-			resp = client.execute(get);
+			resp = client.execute(request);
 		} catch (ClientProtocolException e) {
 			e.printStackTrace();
 			return false;
@@ -156,20 +194,18 @@ public class DownloadService {
 			return false;
 		}
 		
-		Header[] headers = resp.getAllHeaders();
+		// get content length information
+		String length = ResponseExtractor.getHeaderParameterValue(ConnectConstants.CONTENT_LENGTH, resp);
 		
-		if( null != headers && headers.length > 0 )
+		if( null == length || length.isEmpty() )
 		{
-			for( Header h : headers )
-			{
-				if( h.getName().equals("Content-Length") )
-				{
-					file.setFileSize(Long.parseLong(h.getValue()));
-				}
-			}
+			log.log("Cannot get Content Length", Log.LEVEL_ERROR);
+		}else
+		{
+			file.setFileSize(Long.parseLong(length));
 		}
 		
-		file.setName("temp");
+		// TODO set file name into targetFile
 		
 		return true;
 	}

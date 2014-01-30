@@ -2,6 +2,8 @@ package de.wagentim.element;
 
 import java.util.Vector;
 
+import org.apache.http.Header;
+
 /**
  * All text content in this class is URLEncoded.
  * 
@@ -18,6 +20,9 @@ public class DownloadFile extends AbstractFile
 	private volatile int threadsNumber = 1;
 	private String targeFilePath = null;
 	private Vector<Range> downloadedBlock = null;
+	private Header[] headers = null;
+	
+	private static final int BLOCK_SIZE = 1024;
 	
 	public DownloadFile()
 	{
@@ -77,6 +82,64 @@ public class DownloadFile extends AbstractFile
 
 	public void setFileSize(long fileSize) {
 		this.fileSize = fileSize;
+	}
+
+	public Header[] getHeaders() {
+		return headers;
+	}
+
+	public void setHeaders(Header[] headers) {
+		this.headers = headers;
+	}
+
+	public void init() {
+		
+		long tmp = this.fileSize;
+		
+		long start = -1;
+		long end = 0;
+		long index = 0;
+		
+		if( this.fileSize > 0 )
+		{
+			while( end < tmp )
+			{
+				start = start + end + 1;
+				end = end + BLOCK_SIZE;
+				
+				if( end > tmp )
+				{
+					end = tmp;
+				}
+				
+				Range r = new Range(start, end);
+				r.setIndex(index);
+				
+				downloadedBlock.add(r);
+				
+				index++;
+			}
+		}
+		
+	}
+	
+	public synchronized Range requireRange()
+	{
+		if( downloadedBlock.isEmpty() )
+		{
+			return null;
+		}
+		
+		for( Range r : downloadedBlock )
+		{
+			if( r.getStatus() == Range.STATUS_FREE )
+			{
+				r.setStatus(Range.STATUS_REQUIRED);
+				return r;
+			}
+		}
+		
+		return null;
 	}
 	
 }

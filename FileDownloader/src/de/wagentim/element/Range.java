@@ -9,6 +9,7 @@ public class Range {
 	private long startPoint = -1;
 	private long endPoint = -1;
 	private int status = STATUS_FREE;
+	private long index = 0;
 	
 	public Range(){ this( 0, 0 ); }
 	
@@ -37,6 +38,14 @@ public class Range {
 
 	public void setStatus(int status) {
 		this.status = status;
+	}
+
+	public long getIndex() {
+		return index;
+	}
+
+	public void setIndex(long index) {
+		this.index = index;
 	}
 	
 	
