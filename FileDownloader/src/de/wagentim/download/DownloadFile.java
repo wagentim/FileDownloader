@@ -1,5 +1,6 @@
-package de.wagentim.element;
+package de.wagentim.download;
 
+import java.util.Arrays;
 import java.util.Vector;
 
 import org.apache.http.Header;
@@ -10,23 +11,21 @@ import org.apache.http.Header;
  * @author wagentim
  *
  */
-public class DownloadFile extends AbstractFile
+public class DownloadFile
 {
 	
-	private long id;
 	private long fileSize = -1;
 	private String donwloadURL = null;
 	private String oriFileName = null;
 	private volatile int threadsNumber = 1;
 	private String targeFilePath = null;
-	private Vector<Range> downloadedBlock = null;
-	private Header[] headers = null;
-	
-	private static final int BLOCK_SIZE = 1024;
+	private Header[] headers = new Header[]{};
+	private String method = "Get";
+	private Vector<String> unFinishedBlock = null;
 	
 	public DownloadFile()
 	{
-		setDownloadedBlock(new Vector<Range>());
+		unFinishedBlock = new Vector<String>();
 	}
 	
 	public String getName() {
@@ -51,20 +50,6 @@ public class DownloadFile extends AbstractFile
 	}
 	public void setTargeFilePath(String targeFilePath) {
 		this.targeFilePath = targeFilePath;
-	}
-
-	public Vector<Range> getDownloadedBlock() {
-		return downloadedBlock;
-	}
-
-	public void setDownloadedBlock(Vector<Range> downloadedBlock) {
-		this.downloadedBlock = downloadedBlock;
-	}
-	
-	public synchronized Range requireChunk()
-	{
-		
-		return null;
 	}
 
 	public int getThreadsNumber() {
@@ -92,54 +77,47 @@ public class DownloadFile extends AbstractFile
 		this.headers = headers;
 	}
 
-	public void init() {
-		
-		long tmp = this.fileSize;
-		
-		long start = -1;
-		long end = 0;
-		long index = 0;
-		
-		if( this.fileSize > 0 )
-		{
-			while( end < tmp )
-			{
-				start = start + end + 1;
-				end = end + BLOCK_SIZE;
-				
-				if( end > tmp )
-				{
-					end = tmp;
-				}
-				
-				Range r = new Range(start, end);
-				r.setIndex(index);
-				
-				downloadedBlock.add(r);
-				
-				index++;
-			}
-		}
-		
+	public String getMethod() {
+		return method;
+	}
+
+	public void setMethod(String method) {
+		this.method = method;
 	}
 	
-	public synchronized Range requireRange()
+	public void writeInfo(String info)
 	{
-		if( downloadedBlock.isEmpty() )
+		unFinishedBlock.add(info);
+	}
+	
+	public String getInfo()
+	{
+		if( unFinishedBlock.isEmpty() )
 		{
-			return null;
+			return "";
 		}
 		
-		for( Range r : downloadedBlock )
-		{
-			if( r.getStatus() == Range.STATUS_FREE )
-			{
-				r.setStatus(Range.STATUS_REQUIRED);
-				return r;
-			}
-		}
+		String result = unFinishedBlock.get(0);
 		
-		return null;
+		unFinishedBlock.remove(0);
+		
+		return result;
+	}
+	
+	public Vector<String> getUnFinishedBlock()
+	{
+		return unFinishedBlock;
+	}
+	
+	public void addHeader(Header header)
+	{
+		if( null != header )
+		{
+			Header[] tmp = Arrays.copyOf(headers, headers.length + 1);
+			tmp[tmp.length - 1] = header;
+			
+			headers = tmp;
+		}
 	}
 	
 }

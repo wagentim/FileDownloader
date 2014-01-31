@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Vector;
 
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
@@ -13,19 +14,18 @@ import org.apache.http.HttpStatus;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.config.CookieSpecs;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.message.BasicHeader;
 
-import de.wagentim.element.DownloadFile;
-import de.wagentim.element.IStatusListener;
 import de.wagentim.file.FileManager;
 import de.wagentim.qlogger.channel.DefaultChannel;
 import de.wagentim.qlogger.channel.LogChannel;
 import de.wagentim.qlogger.logger.Log;
 import de.wagentim.qlogger.service.QLoggerService;
+import de.wagentim.threads.DefaultDownloadConfig;
 import de.wagentim.threads.DownloadThread;
 import de.wagentim.utils.connect.ConnectConstants;
 import de.wagentim.utils.connect.RequestBuilder;
@@ -53,7 +53,7 @@ public class DownloadService {
 					.build();
 	}
 	
-	public synchronized void download(DownloadFile file, IStatusListener listener)
+	public synchronized void download(DownloadFile file)
 	{
 		if( null == file )
 		{
@@ -78,8 +78,6 @@ public class DownloadService {
 		// ########################################################
 		
 		initialRemoteFileInformation(file);
-		
-		file.init();
 		
 		// ########################################################
 		// check if target file is available
@@ -112,30 +110,102 @@ public class DownloadService {
 		// create download threads
 		// ########################################################
 		
-		WriteData wd = null;
-	
+		RandomAccessFile tfile = null;
+		
 		try {
-			
-			wd = new WriteData(new RandomAccessFile(targetFile, "rw"), file);
-			
+			tfile = new RandomAccessFile(targetFile, "rwd");
 		} catch (FileNotFoundException e) {
-
 			e.printStackTrace();
 		}
 		
-		HttpRequestBase[] requests = constructRequest(file);
+		String block = file.getInfo().trim();
 		
-		if( null != requests && requests.length > 0 )
+		if( null == block || block.isEmpty() )
 		{
-			int index = 1;
+			divideBlock(file);
+		}
+		
+		for( int i = 0; i < checkThreadNumber(file.getThreadsNumber()); i++ )
+		{
+		
+			block = file.getInfo().trim();
 			
-			new Thread(wd).start();
-			
-			for( HttpRequestBase r : requests )
+			if( null != block && !block.isEmpty() )
 			{
-				new DownloadThread(r, file, null, client, index, wd).start();
+				
+				int index = block.indexOf("-");
+				
+				DefaultDownloadConfig config = new DefaultDownloadConfig(file, tfile);
+				
+				String start = block.substring(0, index);
+				
+				String end = block.substring(index + 1, block.length());
+				
+				config.setHttpClient(client);
+	
+				config.setStartPoint(Long.parseLong(start));
+				
+				Header header = null;
+
+				if( null == end || end.isEmpty() )
+				{
+					config.setEndPoint(-1L);
+					header = new BasicHeader("Range", "bytes=" + start + "-" );
+				}else
+				{
+					config.setStartPoint(Long.parseLong(end));
+					header = new BasicHeader("Range", "bytes=" + start + "-" + end);
+				}
+				
+				file.addHeader(header);
+				
+				new Thread(new DownloadThread(config, log)).start();
 			}
 		}
+	}
+
+	private void divideBlock(DownloadFile file) {
+		
+		long length = file.getFileSize();
+		
+		if( length == 0)
+		{
+			file.getUnFinishedBlock().add("0-");
+			return;
+		}
+		
+		int tNum = file.getThreadsNumber();
+		long start = 0;
+		long end = -1;
+		long size = length / tNum;
+		
+		StringBuffer sb = new StringBuffer();
+		Vector<String> result = file.getUnFinishedBlock();
+		
+		while( end < length)
+		{
+			start = end + 1;
+			
+			sb.append(start);
+			sb.append("-");
+			
+			end = start + size;
+			
+			if( end > length )
+			{
+				sb.append(length);
+			}
+			else
+			{
+				sb.append(end);
+			}
+
+			result.add(sb.toString());
+			
+			sb.delete(0, sb.length());
+		}
+		
+		
 	}
 
 	/**
@@ -162,10 +232,9 @@ public class DownloadService {
 			return false;
 		}
 		
-		HttpRequestBase request = new RequestBuilder()
-										.setHeaders(file.getHeaders())
-										.setMethodType(RequestBuilder.TYPE_GET)
-										.setURI(uri)
+		HttpUriRequest request = RequestBuilder.create("Get")
+										.setUri(file.getDonwloadURL())
+										.addHeader(file.getHeaders())
 										.build();
 		
 		HttpResponse resp = null;
@@ -210,28 +279,6 @@ public class DownloadService {
 		return true;
 	}
 
-	private HttpRequestBase[] constructRequest(DownloadFile file) 
-	{
-
-		int threads = checkThreadNumber(file.getThreadsNumber());
-		
-		HttpRequestBase[] result = new HttpRequestBase[threads];
-		
-		HttpGet get = null;
-		
-		for( int i = 0; i < threads; i++ )
-		{
-			get = new HttpGet(file.getDonwloadURL());
-			
-			addHeaders(get, file.getHeaders());
-			
-			
-			result[i] = get;
-		}
-		
-		return result;
-	}
-
 	private int checkThreadNumber(int threads) 
 	{
 	
@@ -242,17 +289,4 @@ public class DownloadService {
 		return threads;
 	}
 
-	private void addHeaders(HttpGet get, Header[] headers) {
-		
-		if( null == headers || headers.length <= 0 )
-		{
-			return;
-		}
-		
-		for( Header h : headers )
-		{
-			get.addHeader(h);
-		}
-		
-	}
 }

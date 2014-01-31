@@ -75,7 +75,6 @@ public class DownloadThread implements Runnable
 		HttpUriRequest request = RequestBuilder.create( config.getRequestMethod() )
 										.setUri( config.getURI() )
 										.addHeader( config.getHeaders() )
-										.addParameters( config.getparameters() )
 										.build();
 		
 		HttpResponse resp = null;
@@ -105,8 +104,11 @@ public class DownloadThread implements Runnable
 			while( !cancel && (size = ins.read(buffer)) > 0 )
 			{
 				target.write(buffer);
-				config.setOffset(size);
+				config.updateOffset(size);
+				log.log("Donwload: " + config.getStartPoint(), Log.LEVEL_INFO);
 			}
+			
+			config.flushInfo();
 			
 		} catch (IllegalStateException e) {
 			e.printStackTrace();
