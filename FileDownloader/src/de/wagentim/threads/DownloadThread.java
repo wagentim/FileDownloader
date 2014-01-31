@@ -2,100 +2,110 @@ package de.wagentim.threads;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.RandomAccessFile;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
-import org.apache.http.client.methods.HttpRequestBase;
-import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpUriRequest;
 
-import de.wagentim.download.DataBlock;
-import de.wagentim.download.WriteData;
-import de.wagentim.element.DownloadFile;
-import de.wagentim.element.IStatusListener;
-import de.wagentim.qlogger.channel.DefaultChannel;
 import de.wagentim.qlogger.channel.LogChannel;
 import de.wagentim.qlogger.logger.Log;
-import de.wagentim.qlogger.service.QLoggerService;
+import de.wagentim.utils.connect.RequestBuilder;
 
 /**
- * The thread to download the file
+ * Download Data
+ * <p>
+ * Download Data from the remote server to the local predefined file
+ * </p>
  * 
  * @author wagentim
  *
  */
-public class DownloadThread extends Thread 
+public class DownloadThread implements Runnable
 {
-	private HttpRequestBase request = null;
-	private DownloadFile downloadFile = null;
-	private IStatusListener listener = null;
-	private CloseableHttpClient client = null;
 	
-	private WriteData wd = null;
-	
-	private volatile boolean cancel = false;
-	private static final int BUFFER_SIZE = 4096;
-	
-	private final int id;
-	
+	private DownloadConfig config = null;
 	private LogChannel log = null;
 	
-	public DownloadThread(final HttpRequestBase request, final DownloadFile downloadFile, final IStatusListener listener, final CloseableHttpClient client, final int id, final WriteData wd)
+	private volatile boolean cancel = false;
+	
+	private int bufferSize;
+	
+	
+	public DownloadThread( final DownloadConfig config, final LogChannel log )
 	{
-		this.request = request;
-		this.downloadFile = downloadFile;
-		this.listener = listener;
-		this.client = client;
-		this.id = id;
-		this.wd = wd;
-		
-		log = QLoggerService.getChannel(QLoggerService.addChannel(new DefaultChannel("Thread " + id)));
+		this(config, log, 2048);
 	}
-
-	@Override
-	public void run() 
+	
+	public DownloadThread( final DownloadConfig config, final LogChannel log, final int bufferSize )
 	{
-		
-		log.log("Thread: " + id + " Started!!", Log.LEVEL_INFO);
-		
-		if( null == request || null == client )
+		this.config = config;
+		this.log = log;
+		this.bufferSize = bufferSize;
+	}
+	
+	@Override
+	public void run()
+	{
+		if( null == config )
 		{
-			log.log("Request is null or Client is null", Log.LEVEL_CRITICAL_ERROR);
+			log.log("No defined config object", Log.LEVEL_CRITICAL_ERROR);
+			return;
+		}
+
+		HttpClient client = config.getHttpClient();
+		
+		if( null == client )
+		{
+			log.log("HttpClient is null", Log.LEVEL_CRITICAL_ERROR);
 			return;
 		}
 		
-		// step 1: send request
+		RandomAccessFile target = config.getTargetFile();
+		
+		try {
+			target.seek(config.getStartPoint());
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+
+		// send request for the file
+		HttpUriRequest request = RequestBuilder.create( config.getRequestMethod() )
+										.setUri( config.getURI() )
+										.addHeader( config.getHeaders() )
+										.addParameters( config.getparameters() )
+										.build();
 		
 		HttpResponse resp = null;
 		
 		try {
 			resp = client.execute(request);
+		} catch (ClientProtocolException e) {
+			e.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		
-		if( null == resp || resp.getStatusLine().getStatusCode() != HttpStatus.SC_OK )
+		if( null == resp || resp.getStatusLine().getStatusCode() != HttpStatus.SC_OK)
 		{
-			log.log("Cannot get respose from the server or request not successful", Log.LEVEL_CRITICAL_ERROR);
+			log.log("Response is null or Server return an unsuccessful code", Log.LEVEL_CRITICAL_ERROR);
 			return;
 		}
-
-		byte[] buffer = new byte[BUFFER_SIZE];
 		
 		try {
-
+			
 			InputStream ins = resp.getEntity().getContent();
 			
-			int length = 0;
+			byte[] buffer = new byte[bufferSize];
 			
-			int offsetPoint = 0;
+			int size;
 			
-			while( !cancel && ( length = ins.read(buffer) ) > 0 )
+			while( !cancel && (size = ins.read(buffer)) > 0 )
 			{
-				wd.add( new DataBlock(buffer, id, offsetPoint) );
-				
-				offsetPoint += length;
-				
-				log.log("Write: " + offsetPoint, Log.LEVEL_INFO);
+				target.write(buffer);
+				config.setOffset(size);
 			}
 			
 		} catch (IllegalStateException e) {
@@ -105,8 +115,9 @@ public class DownloadThread extends Thread
 		}
 	}
 	
-	public void cancelDownload(boolean value)
+	public void stop()
 	{
-		cancel = value;
+		cancel = true;
 	}
+	
 }
