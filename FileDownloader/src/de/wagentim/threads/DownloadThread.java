@@ -13,6 +13,7 @@ import org.apache.http.client.methods.HttpUriRequest;
 import de.wagentim.qlogger.channel.LogChannel;
 import de.wagentim.qlogger.logger.Log;
 import de.wagentim.utils.connect.RequestBuilder;
+import de.wagentim.utils.connect.ResponseExtractor;
 
 /**
  * Download Data
@@ -87,33 +88,92 @@ public class DownloadThread implements Runnable
 			e.printStackTrace();
 		}
 		
-		if( null == resp || resp.getStatusLine().getStatusCode() != HttpStatus.SC_OK)
+		if( null == resp || (resp.getStatusLine().getStatusCode() != HttpStatus.SC_OK && resp.getStatusLine().getStatusCode() != HttpStatus.SC_PARTIAL_CONTENT))
 		{
 			log.log("Response is null or Server return an unsuccessful code", Log.LEVEL_CRITICAL_ERROR);
 			return;
 		}
 		
-		try {
+		if( resp.getStatusLine().getStatusCode() == HttpStatus.SC_PARTIAL_CONTENT )
+		{
 			
-			InputStream ins = resp.getEntity().getContent();
-			
-			byte[] buffer = new byte[bufferSize];
-			
-			int size;
-			
-			while( !cancel && (size = ins.read(buffer)) > 0 )
+			InputStream ins = null;
+			try {
+				
+				ins = resp.getEntity().getContent();
+				
+				byte[] buffer = new byte[bufferSize];
+				
+				int size;
+				
+				while( !cancel && (size = ins.read(buffer)) > 0 )
+				{
+					target.write(buffer);
+					config.updateOffset(size);
+					log.log("Donwload: " + config.getStartPoint() + "/" + config.getFileSize(), Log.LEVEL_INFO);
+				}
+				
+				config.flushInfo();
+				
+			} catch (IllegalStateException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}finally
 			{
-				target.write(buffer);
-				config.updateOffset(size);
-				log.log("Donwload: " + config.getStartPoint(), Log.LEVEL_INFO);
+				if( null != ins )
+				{
+					try {
+						ins.close();
+						target.close();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+					
+					ins = null;
+					target = null;
+				}
 			}
 			
-			config.flushInfo();
-			
-		} catch (IllegalStateException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
+		}else
+		{		
+			InputStream ins = null;
+			try {
+				
+				ins = resp.getEntity().getContent();
+				
+				byte[] buffer = new byte[bufferSize];
+				
+				int size;
+				
+				while( !cancel && (size = ins.read(buffer)) > 0 )
+				{
+					target.write(buffer);
+					config.updateOffset(size);
+					log.log("Donwload: " + config.getStartPoint() + "/" + config.getFileSize(), Log.LEVEL_INFO);
+				}
+				
+				config.flushInfo();
+				
+			} catch (IllegalStateException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}finally
+			{
+				if( null != ins )
+				{
+					try {
+						ins.close();
+						target.close();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+					
+					ins = null;
+					target = null;
+				}
+			}
 		}
 	}
 	

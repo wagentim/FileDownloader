@@ -27,6 +27,7 @@ import de.wagentim.qlogger.logger.Log;
 import de.wagentim.qlogger.service.QLoggerService;
 import de.wagentim.threads.DefaultDownloadConfig;
 import de.wagentim.threads.DownloadThread;
+import de.wagentim.utils.Converter;
 import de.wagentim.utils.connect.ConnectConstants;
 import de.wagentim.utils.connect.RequestBuilder;
 import de.wagentim.utils.connect.ResponseExtractor;
@@ -153,7 +154,7 @@ public class DownloadService {
 					header = new BasicHeader("Range", "bytes=" + start + "-" );
 				}else
 				{
-					config.setStartPoint(Long.parseLong(end));
+					config.setEndPoint(Long.parseLong(end));
 					header = new BasicHeader("Range", "bytes=" + start + "-" + end);
 				}
 				
@@ -234,7 +235,7 @@ public class DownloadService {
 		
 		HttpUriRequest request = RequestBuilder.create("Get")
 										.setUri(file.getDonwloadURL())
-										.addHeader(file.getHeaders())
+										.addHeader(Converter.convertMyHeader(file.getHeaders()))
 										.build();
 		
 		HttpResponse resp = null;

@@ -4,8 +4,11 @@ import java.io.RandomAccessFile;
 
 import org.apache.http.Header;
 import org.apache.http.client.HttpClient;
+import org.apache.http.message.BasicHeader;
 
 import de.wagentim.download.DownloadFile;
+import de.wagentim.http.MyHeader;
+import de.wagentim.utils.Converter;
 
 public class DefaultDownloadConfig implements DownloadConfig 
 {
@@ -31,7 +34,7 @@ public class DefaultDownloadConfig implements DownloadConfig
 	@Override
 	public Header[] getHeaders() {
 		
-		return file.getHeaders();
+		return Converter.convertMyHeader(file.getHeaders());
 	}
 
 	@Override
@@ -88,8 +91,17 @@ public class DefaultDownloadConfig implements DownloadConfig
 	{
 		if( startPoint < endPoint)
 		{
+			StringBuffer sb = new StringBuffer(""+startPoint);
+			sb.append("-");
+			sb.append(endPoint);
 			
+			file.persistInfo(sb.toString());
 		}
+	}
+
+	@Override
+	public Long getFileSize() {
+		return file.getFileSize();
 	}
 
 }

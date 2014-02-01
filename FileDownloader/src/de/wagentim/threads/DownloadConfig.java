@@ -30,5 +30,7 @@ public interface DownloadConfig
 	long getStartPoint();
 	
 	void flushInfo();
+
+	Long getFileSize();
 	
 }

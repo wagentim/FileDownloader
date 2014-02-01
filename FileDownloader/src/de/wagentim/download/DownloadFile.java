@@ -3,7 +3,15 @@ package de.wagentim.download;
 import java.util.Arrays;
 import java.util.Vector;
 
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+
 import org.apache.http.Header;
+
+import de.wagentim.db.PersistManager;
+import de.wagentim.http.MyHeader;
+import de.wagentim.utils.Converter;
 
 /**
  * All text content in this class is URLEncoded.
@@ -11,15 +19,18 @@ import org.apache.http.Header;
  * @author wagentim
  *
  */
+@Entity
 public class DownloadFile
 {
-	
+	@Id
+	@GeneratedValue
+	private Long id = -1L;
 	private long fileSize = -1;
 	private String donwloadURL = null;
 	private String oriFileName = null;
 	private volatile int threadsNumber = 1;
 	private String targeFilePath = null;
-	private Header[] headers = new Header[]{};
+	private MyHeader[] headers = new MyHeader[]{};
 	private String method = "Get";
 	private Vector<String> unFinishedBlock = null;
 	
@@ -69,11 +80,11 @@ public class DownloadFile
 		this.fileSize = fileSize;
 	}
 
-	public Header[] getHeaders() {
+	public MyHeader[] getHeaders() {
 		return headers;
 	}
 
-	public void setHeaders(Header[] headers) {
+	public void setHeaders(MyHeader[] headers) {
 		this.headers = headers;
 	}
 
@@ -109,15 +120,35 @@ public class DownloadFile
 		return unFinishedBlock;
 	}
 	
+	public void setUnFinishedBlock(Vector<String> unFinishedBlock)
+	{
+		this.unFinishedBlock = unFinishedBlock;
+	}
+	
 	public void addHeader(Header header)
 	{
 		if( null != header )
 		{
-			Header[] tmp = Arrays.copyOf(headers, headers.length + 1);
-			tmp[tmp.length - 1] = header;
+			MyHeader[] tmp = Arrays.copyOf(headers, headers.length + 1);
+			tmp[tmp.length - 1] = Converter.convertHeader(header);
 			
 			headers = tmp;
 		}
 	}
+
+	public synchronized void persistInfo(final String info) {
+		
+		if( null != info && !info.isEmpty() )
+		{
+			unFinishedBlock.add(info);
+			
+			PersistManager.INSTANCE.persis(this);
+		}
+	}
 	
+	
+	public long getID()
+	{
+		return id;
+	}
 }
