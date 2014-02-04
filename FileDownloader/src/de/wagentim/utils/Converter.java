@@ -3,7 +3,7 @@ package de.wagentim.utils;
 import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
 
-import de.wagentim.http.MyHeader;
+import de.wagentim.entity.MyHeader;
 
 public class Converter {
 

@@ -6,8 +6,8 @@ import org.apache.http.Header;
 import org.apache.http.client.HttpClient;
 import org.apache.http.message.BasicHeader;
 
-import de.wagentim.download.DownloadFile;
-import de.wagentim.http.MyHeader;
+import de.wagentim.entity.DownloadFile;
+import de.wagentim.entity.MyHeader;
 import de.wagentim.utils.Converter;
 
 public class DefaultDownloadConfig implements DownloadConfig 

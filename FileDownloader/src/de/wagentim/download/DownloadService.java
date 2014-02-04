@@ -20,6 +20,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicHeader;
 
+import de.wagentim.entity.DownloadFile;
 import de.wagentim.file.FileManager;
 import de.wagentim.qlogger.channel.DefaultChannel;
 import de.wagentim.qlogger.channel.LogChannel;
@@ -158,7 +159,7 @@ public class DownloadService {
 					header = new BasicHeader("Range", "bytes=" + start + "-" + end);
 				}
 				
-				file.addHeader(header);
+				file.addHeader(Converter.convertHeader(header));
 				
 				new Thread(new DownloadThread(config, log)).start();
 			}
